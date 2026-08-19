@@ -9,10 +9,10 @@ app.use(express.json()); // Permite que o Node entenda dados em formato JSON
 
 // 🗄️ 1. Conexão com o Banco de Dados no Docker
 const db = mysql.createConnection({
-  host: '127.0.0.1',       // Endereço local para o Docker
-  user: 'root',
-  password: 'root',        // Senha definida no contêiner do Docker
-  database: 'gestao_ong',  // Banco criado automaticamente pelo Docker
+  host: 'localhost',       // Endereço local para o Docker
+  user: 'administrador_gestao_ong',
+  password: 'G07!brasil',        // Senha definida no contêiner do Docker
+  database: 'administrador_gestao_ong',  // Banco criado automaticamente pelo Docker
   port: 3306               // Porta padrão universal do MySQL
 });
 
