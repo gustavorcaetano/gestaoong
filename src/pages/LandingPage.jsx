@@ -2,6 +2,7 @@ import React, { useEffect, useRef, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import api from "../services/api";
 
 // Importações do Three.js para o fundo de estrelas
 import { Canvas, useFrame } from "@react-three/fiber";
@@ -45,6 +46,14 @@ function StarField() {
 const LandingPage = () => {
   const navigate = useNavigate();
   const mainRef = useRef(null);
+
+  const [feedAcoes, setFeedAcoes] = useState([]);
+
+    useEffect(() => {
+      api.get('/acoes')
+        .then(res => setFeedAcoes(res.data))
+        .catch(err => console.error("Erro ao buscar feed de ações:", err));
+    }, []);
 
   // --- FUNÇÕES DE HOVER ---
   const onButtonEnter = (e) => {
@@ -291,24 +300,42 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* SEÇÃO DE IMPACTO */}
-      <section className="impact-section" style={{ padding: "120px 8%", backgroundColor: "#080a0f", position: "relative", zIndex: 10 }}>
-        <h2 style={{ fontSize: "clamp(2.5rem, 5vw, 3.5rem)", fontWeight: "800", textAlign: "center", marginBottom: "80px" }}>Impacto em Tempo Real</h2>
-        <div style={{ display: "flex", gap: "30px", justifyContent: "center", flexWrap: "wrap", maxWidth: "1200px", margin: "0 auto" }}>
-          {[
-            { title: "1.2k", desc: "Famílias Auxiliadas", icon: iconHome, color: "#38bdf8" },
-            { title: "15t", desc: "Alimentos Distribuídos", icon: iconFood, color: "#818cf8" },
-            { title: "100%", desc: "Transparência Total", icon: iconCheck, color: "#22d3ee" },
-          ].map((item, i) => (
-            <div key={i} className="impact-card" onMouseEnter={onImpactCardEnter} onMouseLeave={onImpactCardLeave}
-              style={{ background: "rgba(255, 255, 255, 0.02)", backdropFilter: "blur(12px)", border: "1px solid rgba(56, 189, 248, 0.1)", padding: "60px 40px", borderRadius: "32px", width: "350px", textAlign: "center", cursor: "pointer", transition: "all 0.3s ease-out" }}>
-              <div style={{ marginBottom: "30px", filter: `drop-shadow(0 0 10px ${item.color})` }}>{item.icon}</div>
-              <h3 style={{ color: "white", fontWeight: "900", fontSize: "3.5rem", marginBottom: "10px", textShadow: `0 0 20px ${item.color}44` }}>{item.title}</h3>
-              <p style={{ color: "#94a3b8", fontSize: "1.1rem" }}>{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* SEÇÃO DE IMPACTO e FEED DE AÇÕES */}
+        <section className="impact-section" style={{ padding: "120px 8%", backgroundColor: "#080a0f", position: "relative", zIndex: 10 }}>
+          <h2 style={{ fontSize: "clamp(2.5rem, 5vw, 3.5rem)", fontWeight: "800", textAlign: "center", marginBottom: "80px" }}>
+            Nossas <span style={{ color: "#38bdf8" }}>Ações e Impacto</span>
+          </h2>
+          
+          <div style={{ display: "flex", gap: "30px", justifyContent: "center", flexWrap: "wrap", maxWidth: "1200px", margin: "0 auto" }}>
+            {feedAcoes.length === 0 ? (
+              /* Fallback para caso ainda não existam ações no banco */
+              [
+                { title: "1.2k", desc: "Famílias Auxiliadas", icon: iconHome, color: "#38bdf8" },
+                { title: "15t", desc: "Alimentos Distribuídos", icon: iconFood, color: "#818cf8" },
+                { title: "100%", desc: "Transparência Total", icon: iconCheck, color: "#22d3ee" },
+              ].map((item, i) => (
+                <div key={i} className="impact-card" onMouseEnter={onImpactCardEnter} onMouseLeave={onImpactCardLeave}
+                  style={{ background: "rgba(255, 255, 255, 0.02)", backdropFilter: "blur(12px)", border: "1px solid rgba(56, 189, 248, 0.1)", padding: "60px 40px", borderRadius: "32px", width: "350px", textAlign: "center", cursor: "pointer", transition: "all 0.3s ease-out" }}>
+                  <div style={{ marginBottom: "30px", filter: `drop-shadow(0 0 10px ${item.color})` }}>{item.icon}</div>
+                  <h3 style={{ color: "white", fontWeight: "900", fontSize: "3.5rem", marginBottom: "10px", textShadow: `0 0 20px ${item.color}44` }}>{item.title}</h3>
+                  <p style={{ color: "#94a3b8", fontSize: "1.1rem" }}>{item.desc}</p>
+                </div>
+              ))
+            ) : (
+              /* Renderização das Ações vindas do Banco de Dados */
+              feedAcoes.map((acao) => (
+                <div key={acao.id} className="impact-card" style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "24px", width: "350px", overflow: "hidden" }}>
+                  <img src={acao.imagem_url} alt={acao.titulo} style={{ width: "100%", height: "200px", objectFit: "cover" }} />
+                  <div style={{ padding: "20px" }}>
+                    <small style={{ color: "#38bdf8", fontWeight: "bold" }}>{new Date(acao.data_acao).toLocaleDateString('pt-BR')}</small>
+                    <h4 style={{ color: "white", fontWeight: "bold", marginTop: "5px" }}>{acao.titulo}</h4>
+                    <p style={{ color: "#94a3b8", fontSize: "0.95rem", marginTop: "10px" }}>{acao.descricao}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');

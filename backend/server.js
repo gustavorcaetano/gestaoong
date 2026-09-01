@@ -1,13 +1,14 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json()); // Permite que o Node entenda dados em formato JSON
 
-// 🗄️ 1. Conexão com o Banco de Dados no Docker
+//  1. Conexão com o Banco de Dados no Docker
 const db = mysql.createConnection({
   host: 'localhost',       // Endereço local para o Docker
   user: 'administrador_gestao_ong',
@@ -22,6 +23,58 @@ db.connect((err) => {
     } else {
         console.log('Conectado com sucesso ao Banco de Dados no Docker! 🚀');
     }
+});
+
+// Criar publicação (ADM)
+app.post('/api/acoes', (req, res) => {
+  const { titulo, descricao, imagem_url, data_acao } = req.body;
+  const query = 'INSERT INTO acoes (titulo, descricao, imagem_url, data_acao) VALUES (?, ?, ?, ?)';
+  db.query(query, [titulo, descricao, imagem_url, data_acao], (err, result) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao publicar ação' });
+    res.status(201).json({ mensagem: 'Ação publicada com sucesso!' });
+  });
+});
+
+// Listar publicações (Landing Page pública)
+app.get('/api/acoes', (req, res) => {
+  db.query('SELECT * FROM acoes ORDER BY data_acao DESC', (err, results) => {
+    if (err) return res.status(500).json({ erro: 'Erro ao buscar ações' });
+    res.json(results);
+  });
+});
+
+// ROTA DE CADASTRO COM CRIPTOGRAFIA
+app.post('/api/cadastrar', async (req, res) => {
+  const { email, senha } = req.body;
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const senhaCriptografada = await bcrypt.hash(senha, salt);
+
+    const query = 'INSERT INTO usuarios (email, senha) VALUES (?, ?)';
+    db.query(query, [email, senhaCriptografada], (err, result) => {
+      if (err) return res.status(500).json({ erro: 'Erro ao cadastrar usuário' });
+      res.status(201).json({ mensagem: 'Administrador cadastrado com sucesso!' });
+    });
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro interno no servidor' });
+  }
+});
+
+// ROTA DE LOGIN COM COMPARAÇÃO DE HASH
+app.post('/api/login', (req, res) => {
+  const { email, senha } = req.body;
+  const query = 'SELECT * FROM usuarios WHERE email = ?';
+
+  db.query(query, [email], async (err, results) => {
+    if (err || results.length === 0) return res.status(401).json({ erro: 'Usuário não encontrado' });
+
+    const usuario = results[0];
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+
+    if (!senhaValida) return res.status(401).json({ erro: 'Senha incorreta' });
+
+    res.json({ mensagem: 'Login realizado com sucesso!', user: { id: usuario.id, email: usuario.email } });
+  });
 });
 
 // 🌐 2. Rotas da API

@@ -1,12 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
-// Firebase
-import { db, auth } from '../firebase';
-import { 
-  collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy, onSnapshot 
-} from 'firebase/firestore';
-import { signOut } from "firebase/auth";
-
 import api from '../services/api';
 import { Container, Row, Col, Table, Button, Form, Modal, InputGroup, Card, Nav, Badge, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +8,8 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('familias'); 
   const [familias, setFamilias] = useState([]);
   const [solicitacoes, setSolicitacoes] = useState([]);
-  const [doacoes, setDoacoes] = useState([]); // Nova lista de doações
+  const [doacoes, setDoacoes] = useState([]);
+  const [acoes, setAcoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: 'nome', direction: 'asc' });
@@ -25,54 +18,68 @@ const AdminDashboard = () => {
   const [editingId, setEditingId] = useState(null);
   const [notify, setNotify] = useState({ show: false, message: '', type: '' });
   const [form, setForm] = useState({ nome: '', dependentes: 0, renda: 0, totalEntregas: 0 });
+  const [formAcao, setFormAcao] = useState({ titulo: '', descricao: '', imagem_url: '', data_acao: '' });
+
+  // Cores de contraste
+  const styles = {
+    textPrimary: '#f8fafc',
+    textSecondary: '#cbd5e1',
+    accent: '#38bdf8',
+    cardBg: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(56, 189, 248, 0.2)'
+  };
+
+  // Carregamento inicial de dados com proteção contra respostas inválidas/HTML
+  useEffect(() => {
+    setLoading(true);
+
+    const carregarFamilias = api.get('/admin/familias')
+      .then((res) => setFamilias(Array.isArray(res.data) ? res.data : (res.data?.familias || [])))
+      .catch((err) => { console.error("Erro em famílias:", err); setFamilias([]); });
+
+    const carregarSolicitacoes = api.get('/admin/solicitacoes')
+      .then((res) => setSolicitacoes(Array.isArray(res.data) ? res.data : (res.data?.solicitacoes || [])))
+      .catch((err) => { console.error("Erro em solicitações:", err); setSolicitacoes([]); });
+
+    const carregarDoacoes = api.get('/admin/doacoes')
+      .then((res) => setDoacoes(Array.isArray(res.data) ? res.data : (res.data?.doacoes || [])))
+      .catch((err) => { console.error("Erro em doações:", err); setDoacoes([]); });
+
+    const carregarAcoes = api.get('/acoes')
+      .then((res) => setAcoes(Array.isArray(res.data) ? res.data : (res.data?.acoes || [])))
+      .catch((err) => { console.error("Erro em ações:", err); setAcoes([]); });
+
+    Promise.all([carregarFamilias, carregarSolicitacoes, carregarDoacoes, carregarAcoes]).finally(() => {
+      setLoading(false);
+    });
+  }, []);
+
+  const handleCriarAcao = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.post('/acoes', formAcao);
+      setAcoes(prev => [res.data, ...prev]);
+      setFormAcao({ titulo: '', descricao: '', imagem_url: '', data_acao: '' });
+      showNotification("Ação publicada no feed!", "success");
+    } catch (err) {
+      showNotification("Erro ao publicar ação.", "danger");
+    }
+  };
 
   const showNotification = (message, type) => {
     setNotify({ show: true, message, type });
     setTimeout(() => setNotify({ show: false, message: '', type: '' }), 4000);
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
+  const handleLogout = () => {
+    localStorage.removeItem('@token');
     navigate('/login');
   };
 
-  // Cores de contraste melhoradas
-  const styles = {
-    textPrimary: '#f8fafc', // Branco gelo (alto contraste)
-    textSecondary: '#cbd5e1', // Cinza claro legível
-    accent: '#38bdf8', // Azul neon
-    cardBg: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid rgba(56, 189, 248, 0.2)'
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    
-    // 1. BUSCA FAMÍLIAS DO MYSQL
-    const carregarFamilias = api.get('/admin/familias')
-      .then((response) => setFamilias(response.data))
-      .catch((error) => console.error("Erro ao buscar famílias:", error));
-
-    // 2. BUSCA SOLICITAÇÕES DO MYSQL (Substituindo o Firebase por Axios)
-    const carregarSolicitacoes = api.get('/admin/solicitacoes')
-      .then((response) => setSolicitacoes(response.data))
-      .catch((error) => console.error("Erro ao buscar solicitações:", error));
-
-    // 3. BUSCA DOAÇÕES DO MYSQL
-    const carregarDoacoes = api.get('/admin/doacoes')
-      .then((response) => setDoacoes(response.data))
-      .catch((error) => console.error("Erro ao buscar doações:", error));
-
-    // Espera todas as chamadas do MySQL terminarem
-    Promise.all([carregarFamilias, carregarSolicitacoes, carregarDoacoes]).finally(() => {
-      setLoading(false);
-    });
-  }, []);
-
-  // Lógica de Filtro
-  const familiasFiltradas = familias.filter(f => 
-    f.nome?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Lógica de Filtro Única e Segura
+  const familiasFiltradas = Array.isArray(familias) 
+    ? familias.filter(f => f.nome?.toLowerCase().includes(searchTerm.toLowerCase()))
+    : [];
 
   const sortedFamilias = [...familiasFiltradas].sort((a, b) => {
     if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -80,35 +87,47 @@ const AdminDashboard = () => {
     return 0;
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const dataPayload = {
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const dataPayload = {
+      nome: form.nome,
+      dependentes: Number(form.dependentes),
+      renda: Number(form.renda),
+      totalEntregas: Number(form.totalEntregas)
+    };
+
+    if (editingId) {
+      const response = await api.put(`/admin/familias/${editingId}`, dataPayload);
+      const familiaAtualizada = response.data?.familia || response.data;
+      setFamilias(prev => prev.map(f => f.id === editingId ? familiaAtualizada : f));
+      showNotification("Cadastro atualizado com sucesso!", "success");
+    } else {
+      const response = await api.post('/admin/familias', dataPayload);
+      
+      // Extrai o objeto da família retornado do MySQL
+      const novaFamilia = response.data?.familia || response.data;
+      
+      // Garante que o ID e campos existam na tela imediatamente
+      const familiaFormatada = {
+        id: novaFamilia.id || Date.now(),
         nome: form.nome,
         dependentes: Number(form.dependentes),
         renda: Number(form.renda),
         totalEntregas: Number(form.totalEntregas)
       };
 
-      if (editingId) {
-        // ATUALIZA NO MYSQL VIA AXIOS
-        const response = await api.put(`/admin/familias/${editingId}`, dataPayload);
-        
-        // Atualiza a lista na tela imediatamente
-        setFamilias(prev => prev.map(f => f.id === editingId ? response.data : f));
-        showNotification("Cadastro atualizado com sucesso!", "success");
-      } else {
-        // ENVIA OS DADOS PARA O MYSQL VIA AXIOS
-        const response = await api.post('/admin/familias', dataPayload);
-        setFamilias(prev => [...prev, response.data]);
-        showNotification("Família cadastrada com sucesso!", "success");
-      }
-      setShowModal(false);
-    } catch (err) { 
-      console.error("Erro ao salvar família:", err);
-      showNotification("Erro ao salvar.", "danger"); 
+      setFamilias(prev => [familiaFormatada, ...prev]);
+      showNotification("Família cadastrada com sucesso!", "success");
     }
-  };
+    
+    setShowModal(false);
+    setForm({ nome: '', dependentes: 0, renda: 0, totalEntregas: 0 });
+  } catch (err) { 
+    console.error("Erro ao salvar família:", err);
+    showNotification("Erro ao salvar no banco de dados.", "danger"); 
+  }
+};
 
   const handleStatusUpdate = async (coll, id, novoStatus) => {
     try {
@@ -117,13 +136,9 @@ const AdminDashboard = () => {
         showNotification("Status da doação atualizado!", "success");
         setDoacoes(prev => prev.map(d => d.id === id ? { ...d, status: novoStatus } : d));
       } else if (coll === 'solicitacoes') {
-        // ATUALIZA STATUS DA SOLICITAÇÃO NO MYSQL VIA AXIOS
         await api.put(`/admin/solicitacoes/${id}`, { status: novoStatus });
         showNotification("Pedido resolvido com sucesso!", "success");
         setSolicitacoes(prev => prev.map(s => s.id === id ? { ...s, status: novoStatus } : s));
-      } else {
-        await updateDoc(doc(db, coll, id), { status: novoStatus });
-        showNotification("Status atualizado!", "success");
       }
     } catch (err) { 
       console.error("Erro ao atualizar status:", err);
@@ -139,13 +154,9 @@ const AdminDashboard = () => {
           setFamilias(prev => prev.filter(f => f.id !== id));
           showNotification("Família removida com sucesso.", "success");
         } else if (coll === 'solicitacoes') {
-          // EXCLUI A SOLICITAÇÃO DO MYSQL VIA AXIOS
           await api.delete(`/admin/solicitacoes/${id}`);
           setSolicitacoes(prev => prev.filter(s => s.id !== id));
           showNotification("Pedido removido com sucesso.", "success");
-        } else {
-          await deleteDoc(doc(db, coll, id));
-          showNotification("Removido com sucesso.", "success");
         }
       } catch (err) {
         console.error("Erro ao excluir:", err);
@@ -157,7 +168,6 @@ const AdminDashboard = () => {
   return (
     <div style={{ background: '#020617', minHeight: '100vh', color: styles.textPrimary, padding: '20px' }}>
       
-      {/* Notificação Flutuante */}
       {notify.show && (
         <div style={{
           position: 'fixed', top: '20px', right: '20px', zIndex: 10000,
@@ -203,13 +213,18 @@ const AdminDashboard = () => {
               💰 Doações <Badge bg="info" pill className="ms-1">{doacoes.filter(d => d.status === 'Pendente').length}</Badge>
             </Nav.Link>
           </Nav.Item>
+          <Nav.Item>
+            <Nav.Link eventKey="acoes" onClick={() => setActiveTab('acoes')}
+              style={{ color: activeTab === 'acoes' ? '#fff' : styles.textSecondary, background: activeTab === 'acoes' ? '#38bdf8' : 'transparent', fontWeight: 'bold' }}>
+              📢 Ações (Feed)
+            </Nav.Link>
+          </Nav.Item>
         </Nav>
 
         {loading ? (
           <div className="text-center py-5"><Spinner animation="grow" variant="info" /></div>
         ) : (
           <>
-            {/* ABA FAMÍLIAS */}
             {activeTab === 'familias' && (
               <>
                 <InputGroup className="mb-4" style={{ maxWidth: '450px' }}>
@@ -250,7 +265,6 @@ const AdminDashboard = () => {
               </>
             )}
 
-            {/* ABA SOLICITAÇÕES */}
             {activeTab === 'solicitacoes' && (
               <Row>
                 {solicitacoes.map((s) => (
@@ -276,7 +290,6 @@ const AdminDashboard = () => {
               </Row>
             )}
 
-            {/* ABA DOAÇÕES (NOVA) */}
             {activeTab === 'doacoes' && (
               <div style={{ background: styles.cardBg, borderRadius: '20px', border: styles.border, overflow: 'hidden' }}>
                 <Table hover responsive variant="dark" className="m-0 border-0">
@@ -296,7 +309,6 @@ const AdminDashboard = () => {
                         <td className="p-3 fw-bold">{d.nome} <br/><small className="text-muted">{d.email}</small></td>
                         <td className="p-3 fw-bold text-success">R$ {d.valor}</td>
                         <td className="p-3">{d.metodo}</td>
-                        {/* Linha abaixo alterada para a exibição da tabela */}
                         <td className="p-3 text-secondary">{new Date(d.data).toLocaleDateString('pt-BR')}</td>
                         <td className="p-3"><Badge bg={d.status === 'Pendente' ? 'warning' : 'success'}>{d.status}</Badge></td>
                         <td className="p-3 text-center">
@@ -310,11 +322,39 @@ const AdminDashboard = () => {
                 </Table>
               </div>
             )}
+
+            {activeTab === 'acoes' && (
+              <div>
+                <Card style={{ background: styles.cardBg, border: styles.border, borderRadius: '20px' }} className="p-4 mb-4">
+                  <h4 style={{ color: styles.accent }}>Publicar Nova Ação</h4>
+                  <Form onSubmit={handleCriarAcao}>
+                    <Row className="mb-3">
+                      <Col md={6}>
+                        <Form.Label>Título da Ação</Form.Label>
+                        <Form.Control required style={inputStyle} value={formAcao.titulo} onChange={e => setFormAcao({...formAcao, titulo: e.target.value})} placeholder="Ex: Entrega de Cestas Básicas" />
+                      </Col>
+                      <Col md={6}>
+                        <Form.Label>Data da Realização</Form.Label>
+                        <Form.Control required type="date" style={inputStyle} value={formAcao.data_acao} onChange={e => setFormAcao({...formAcao, data_acao: e.target.value})} />
+                      </Col>
+                    </Row>
+                    <Form.Group className="mb-3">
+                      <Form.Label>URL da Imagem</Form.Label>
+                      <Form.Control required type="url" style={inputStyle} value={formAcao.imagem_url} onChange={e => setFormAcao({...formAcao, imagem_url: e.target.value})} placeholder="https://i.ibb.co/..." />
+                    </Form.Group>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Descrição</Form.Label>
+                      <Form.Control required as="textarea" rows={3} style={inputStyle} value={formAcao.descricao} onChange={e => setFormAcao({...formAcao, descricao: e.target.value})} placeholder="Resumo do impacto realizado..." />
+                    </Form.Group>
+                    <Button type="submit" style={{ background: styles.accent, border: 'none', fontWeight: 'bold' }}>Publicar no Feed</Button>
+                  </Form>
+                </Card>
+              </div>
+            )}
           </>
         )}
       </Container>
 
-      {/* MODAL EDIÇÃO/CADASTRO */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered contentClassName="bg-dark text-white border-0" style={{ backdropFilter: 'blur(10px)' }}>
         <Modal.Header closeButton closeVariant="white" style={{ borderBottom: '1px solid #334155' }}>
           <Modal.Title style={{ fontWeight: 800 }}>{editingId ? 'EDITAR FAMÍLIA' : 'CADASTRAR FAMÍLIA'}</Modal.Title>
