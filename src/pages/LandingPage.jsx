@@ -19,6 +19,7 @@ function StarField() {
   );
 
   useFrame((state, delta) => {
+    if (!ref.current) return;
     ref.current.rotation.x -= delta / 15;
     ref.current.rotation.y -= delta / 20;
     ref.current.rotation.x +=
@@ -49,11 +50,14 @@ const LandingPage = () => {
 
   const [feedAcoes, setFeedAcoes] = useState([]);
 
-    useEffect(() => {
-      api.get('/acoes')
-        .then(res => setFeedAcoes(res.data))
-        .catch(err => console.error("Erro ao buscar feed de ações:", err));
-    }, []);
+  useEffect(() => {
+    api.get('/acoes')
+      .then(res => setFeedAcoes(Array.isArray(res.data) ? res.data : []))
+      .catch(err => {
+        console.error("Erro ao buscar feed de ações:", err);
+        setFeedAcoes([]);
+      });
+  }, []);
 
   // --- FUNÇÕES DE HOVER ---
   const onButtonEnter = (e) => {
@@ -96,6 +100,8 @@ const LandingPage = () => {
     const target = e.currentTarget;
     const img = target.querySelector("img");
     const label = target.querySelector(".bubble-label");
+    if (!target) return;
+
     gsap.to(target, {
       scale: 1.15,
       boxShadow: `0 0 50px ${color}, inset 0 0 20px ${color}`,
@@ -104,25 +110,16 @@ const LandingPage = () => {
       duration: 0.5,
       ease: "back.out(1.7)",
     });
-    gsap.to(img, {
-      opacity: 1,
-      mixBlendMode: "normal",
-      scale: 1.1,
-      duration: 0.5,
-    });
-    gsap.to(label, {
-      y: -10,
-      opacity: 1,
-      color: "#fff",
-      textShadow: `0 0 15px ${color}`,
-      duration: 0.4,
-    });
+    if (img) gsap.to(img, { opacity: 1, mixBlendMode: "normal", scale: 1.1, duration: 0.5 });
+    if (label) gsap.to(label, { y: -10, opacity: 1, color: "#fff", textShadow: `0 0 15px ${color}`, duration: 0.4 });
   };
 
   const onBubbleLeave = (e, color) => {
     const target = e.currentTarget;
     const img = target.querySelector("img");
     const label = target.querySelector(".bubble-label");
+    if (!target) return;
+
     gsap.to(target, {
       scale: 1,
       boxShadow: `0 0 20px ${color}cc, inset 0 0 15px ${color}aa`,
@@ -131,18 +128,8 @@ const LandingPage = () => {
       duration: 0.5,
       ease: "power2.inOut",
     });
-    gsap.to(img, {
-      opacity: 0.6,
-      mixBlendMode: "luminosity",
-      scale: 1,
-      duration: 0.5,
-    });
-    gsap.to(label, {
-      y: 0,
-      color: color,
-      textShadow: `0 0 10px ${color}`,
-      duration: 0.4,
-    });
+    if (img) gsap.to(img, { opacity: 0.6, mixBlendMode: "luminosity", scale: 1, duration: 0.5 });
+    if (label) gsap.to(label, { y: 0, color: color, textShadow: `0 0 10px ${color}`, duration: 0.4 });
   };
 
   const onImpactCardEnter = (e) => {
@@ -157,7 +144,7 @@ const LandingPage = () => {
       duration: 0.4,
     });
 
-    gsap.to(iconPath, { fill: "#38bdf8", duration: 0.4 });
+    if (iconPath.length) gsap.to(iconPath, { fill: "#38bdf8", duration: 0.4 });
   };
 
   const onImpactCardLeave = (e) => {
@@ -172,7 +159,7 @@ const LandingPage = () => {
       duration: 0.4,
     });
 
-    gsap.to(iconPath, { fill: "none", duration: 0.4 });
+    if (iconPath.length) gsap.to(iconPath, { fill: "none", duration: 0.4 });
   };
 
   useEffect(() => {
@@ -186,26 +173,32 @@ const LandingPage = () => {
         delay: 0.2
       });
 
-      // Impact Cards Animation - CORRIGIDO PARA GARANTIR VISIBILIDADE
-      gsap.fromTo(".impact-card", 
-        { opacity: 0, y: 60 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          stagger: 0.2,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".impact-section",
-            start: "top 80%",
-            toggleActions: "play none none none"
+      // Impact Cards Animation
+      const cards = document.querySelectorAll(".impact-card");
+      if (cards.length > 0) {
+        gsap.fromTo(".impact-card", 
+          { opacity: 0, y: 60 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            stagger: 0.2,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: ".impact-section",
+              start: "top 80%",
+              toggleActions: "play none none none"
+            }
           }
-        }
-      );
+        );
+      }
 
-      // Bubble Orbit
+      // Bubble Orbit Segura (valida se o elemento existe)
       const bubbleSelectors = [".bubble-1", ".bubble-2", ".bubble-3", ".bubble-4"];
       bubbleSelectors.forEach((sel, i) => {
+        const el = document.querySelector(sel);
+        if (!el) return; // Trava contra erros caso o elemento não exista
+
         const startAngle = (i / bubbleSelectors.length) * Math.PI * 2;
         const radius = 180;
         gsap.to(sel, {
@@ -301,41 +294,39 @@ const LandingPage = () => {
       </section>
 
       {/* SEÇÃO DE IMPACTO e FEED DE AÇÕES */}
-        <section className="impact-section" style={{ padding: "120px 8%", backgroundColor: "#080a0f", position: "relative", zIndex: 10 }}>
-          <h2 style={{ fontSize: "clamp(2.5rem, 5vw, 3.5rem)", fontWeight: "800", textAlign: "center", marginBottom: "80px" }}>
-            Nossas <span style={{ color: "#38bdf8" }}>Ações e Impacto</span>
-          </h2>
-          
-          <div style={{ display: "flex", gap: "30px", justifyContent: "center", flexWrap: "wrap", maxWidth: "1200px", margin: "0 auto" }}>
-            {feedAcoes.length === 0 ? (
-              /* Fallback para caso ainda não existam ações no banco */
-              [
-                { title: "1.2k", desc: "Famílias Auxiliadas", icon: iconHome, color: "#38bdf8" },
-                { title: "15t", desc: "Alimentos Distribuídos", icon: iconFood, color: "#818cf8" },
-                { title: "100%", desc: "Transparência Total", icon: iconCheck, color: "#22d3ee" },
-              ].map((item, i) => (
-                <div key={i} className="impact-card" onMouseEnter={onImpactCardEnter} onMouseLeave={onImpactCardLeave}
-                  style={{ background: "rgba(255, 255, 255, 0.02)", backdropFilter: "blur(12px)", border: "1px solid rgba(56, 189, 248, 0.1)", padding: "60px 40px", borderRadius: "32px", width: "350px", textAlign: "center", cursor: "pointer", transition: "all 0.3s ease-out" }}>
-                  <div style={{ marginBottom: "30px", filter: `drop-shadow(0 0 10px ${item.color})` }}>{item.icon}</div>
-                  <h3 style={{ color: "white", fontWeight: "900", fontSize: "3.5rem", marginBottom: "10px", textShadow: `0 0 20px ${item.color}44` }}>{item.title}</h3>
-                  <p style={{ color: "#94a3b8", fontSize: "1.1rem" }}>{item.desc}</p>
+      <section className="impact-section" style={{ padding: "120px 8%", backgroundColor: "#080a0f", position: "relative", zIndex: 10 }}>
+        <h2 style={{ fontSize: "clamp(2.5rem, 5vw, 3.5rem)", fontWeight: "800", textAlign: "center", marginBottom: "80px" }}>
+          Nossas <span style={{ color: "#38bdf8" }}>Ações e Impacto</span>
+        </h2>
+        
+        <div style={{ display: "flex", gap: "30px", justifyContent: "center", flexWrap: "wrap", maxWidth: "1200px", margin: "0 auto" }}>
+          {feedAcoes.length === 0 ? (
+            [
+              { title: "1.2k", desc: "Famílias Auxiliadas", icon: iconHome, color: "#38bdf8" },
+              { title: "15t", desc: "Alimentos Distribuídos", icon: iconFood, color: "#818cf8" },
+              { title: "100%", desc: "Transparência Total", icon: iconCheck, color: "#22d3ee" },
+            ].map((item, i) => (
+              <div key={i} className="impact-card" onMouseEnter={onImpactCardEnter} onMouseLeave={onImpactCardLeave}
+                style={{ background: "rgba(255, 255, 255, 0.02)", backdropFilter: "blur(12px)", border: "1px solid rgba(56, 189, 248, 0.1)", padding: "60px 40px", borderRadius: "32px", width: "350px", textAlign: "center", cursor: "pointer", transition: "all 0.3s ease-out" }}>
+                <div style={{ marginBottom: "30px", filter: `drop-shadow(0 0 10px ${item.color})` }}>{item.icon}</div>
+                <h3 style={{ color: "white", fontWeight: "900", fontSize: "3.5rem", marginBottom: "10px", textShadow: `0 0 20px ${item.color}44` }}>{item.title}</h3>
+                <p style={{ color: "#94a3b8", fontSize: "1.1rem" }}>{item.desc}</p>
+              </div>
+            ))
+          ) : (
+            feedAcoes.map((acao) => (
+              <div key={acao.id} className="impact-card" style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "24px", width: "350px", overflow: "hidden" }}>
+                <img src={acao.imagem_url} alt={acao.titulo} style={{ width: "100%", height: "200px", objectFit: "cover" }} />
+                <div style={{ padding: "20px" }}>
+                  <small style={{ color: "#38bdf8", fontWeight: "bold" }}>{new Date(acao.data_acao).toLocaleDateString('pt-BR')}</small>
+                  <h4 style={{ color: "white", fontWeight: "bold", marginTop: "5px" }}>{acao.titulo}</h4>
+                  <p style={{ color: "#94a3b8", fontSize: "0.95rem", marginTop: "10px" }}>{acao.descricao}</p>
                 </div>
-              ))
-            ) : (
-              /* Renderização das Ações vindas do Banco de Dados */
-              feedAcoes.map((acao) => (
-                <div key={acao.id} className="impact-card" style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "24px", width: "350px", overflow: "hidden" }}>
-                  <img src={acao.imagem_url} alt={acao.titulo} style={{ width: "100%", height: "200px", objectFit: "cover" }} />
-                  <div style={{ padding: "20px" }}>
-                    <small style={{ color: "#38bdf8", fontWeight: "bold" }}>{new Date(acao.data_acao).toLocaleDateString('pt-BR')}</small>
-                    <h4 style={{ color: "white", fontWeight: "bold", marginTop: "5px" }}>{acao.titulo}</h4>
-                    <p style={{ color: "#94a3b8", fontSize: "0.95rem", marginTop: "10px" }}>{acao.descricao}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
