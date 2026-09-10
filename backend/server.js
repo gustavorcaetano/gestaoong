@@ -4,74 +4,117 @@ const mysql = require('mysql2');
 
 const app = express();
 
-// 1. Libera CORS para qualquer origem e método
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
-
+app.use(cors({ origin: '*' }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Rota de teste para ver se a API está viva
-app.get('/', (req, res) => {
-  res.json({ status: 'API Online e Funcional' });
+// Middleware que remove o prefixo do subdomínio injetado pelo cPanel
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api.projetogestaoong.ifhost.gru.br')) {
+    req.url = req.url.replace('/api.projetogestaoong.ifhost.gru.br', '') || '/';
+  }
+  next();
 });
 
-// Importe suas rotas existentes aqui (ajuste o caminho se necessário)
-const familiasRoutes = require('./routes/familias');
-const doacoesRoutes = require('./routes/doacoes');
-const solicitacoesRoutes = require('./routes/solicitacoes');
-const acoesRoutes = require('./routes/acoes');
-const authRoutes = require('./routes/auth');
+const db = mysql.createPool({
+  host: 'localhost',
+  user: 'administrador_gestao_ong',
+  password: 'G07!brasil',
+  database: 'administrador_gestao_ong',
+  waitForConnections: true,
+  connectionLimit: 10
+});
 
-// Mapeia tanto COM /api quanto SEM /api para evitar erro 404 Not Found
-app.use('/api/admin/familias', familiasRoutes);
-app.use('/admin/familias', familiasRoutes);
+app.get('/', (req, res) => {
+  res.send('API Node no cPanel funcionando!');
+});
 
-app.use('/api/admin/doacoes', doacoesRoutes);
-app.use('/admin/doacoes', doacoesRoutes);
+app.post('/auth/login', (req, res) => {
+  const { email, senha } = req.body;
+  const sql = 'SELECT * FROM usuarios WHERE email = ? AND senha = ?';
+  db.query(sql, [email, senha], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0) return res.status(401).json({ message: 'Credenciais inválidas' });
+    res.json({ message: 'Login realizado com sucesso', usuario: results[0] });
+  });
+});
 
-app.use('/api/admin/solicitacoes', solicitacoesRoutes);
-app.use('/admin/solicitacoes', solicitacoesRoutes);
+app.get('/admin/familias', (req, res) => {
+  db.query('SELECT * FROM familias', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
 
-app.use('/api/acoes', acoesRoutes);
-app.use('/acoes', acoesRoutes);
+app.post('/admin/familias', (req, res) => {
+  const dados = req.body;
+  db.query('INSERT INTO familias SET ?', [dados], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: result.insertId, ...dados });
+  });
+});
 
-app.use('/api/auth', authRoutes);
-app.use('/auth', authRoutes);
+app.put('/admin/familias/:id', (req, res) => {
+  const { id } = req.params;
+  const dados = req.body;
+  db.query('UPDATE familias SET ? WHERE id = ?', [dados, id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Família atualizada' });
+  });
+});
+
+app.delete('/admin/familias/:id', (req, res) => {
+  const { id } = req.params;
+  db.query('DELETE FROM familias WHERE id = ?', [id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Família removida' });
+  });
+});
+
+app.get('/admin/doacoes', (req, res) => {
+  db.query('SELECT * FROM doacoes', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+app.get('/admin/solicitacoes', (req, res) => {
+  db.query('SELECT * FROM solicitacoes', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+app.put('/admin/solicitacoes/:id', (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  db.query('UPDATE solicitacoes SET status = ? WHERE id = ?', [status, id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Status atualizado' });
+  });
+});
+
+app.delete('/admin/solicitacoes/:id', (req, res) => {
+  const { id } = req.params;
+  db.query('DELETE FROM solicitacoes WHERE id = ?', [id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Solicitação removida' });
+  });
+});
+
+app.get('/acoes', (req, res) => {
+  db.query('SELECT * FROM acoes', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+app.post('/acoes', (req, res) => {
+  const dados = req.body;
+  db.query('INSERT INTO acoes SET ?', [dados], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: result.insertId, ...dados });
+  });
+});
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
-
-// Outra coisa
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'gestaoong-db',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'rootpassword',
-  database: process.env.DB_NAME || 'gestaoong',
-  port: 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-// Tenta testar a conexão com retentativas automáticas
-const connectWithRetry = () => {
-  pool.getConnection((err, connection) => {
-    if (err) {
-      console.log('Aguardando banco de dados inicializar... Tentando novamente em 5s');
-      setTimeout(connectWithRetry, 5000);
-    } else {
-      console.log('Conectado ao MySQL com sucesso!');
-      connection.release();
-    }
-  });
-};
-
-connectWithRetry();
-
-module.exports = pool;
+app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));

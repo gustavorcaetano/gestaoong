@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api'
+  baseURL: 'https://ifhost.gru.br/api.projetogestaoong.ifhost.gru.br'
 });
 
 export const login = (dados) => api.post('/auth/login', dados);
