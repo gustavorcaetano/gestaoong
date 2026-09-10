@@ -1,16 +1,18 @@
 services:
-  # Web Service para o Frontend React
+  # Frontend React + Nginx
   - type: web
     name: gestaoong-frontend
     env: docker
+    dockerContext: ./frontend
     dockerfilePath: ./frontend/Dockerfile
     plan: free
     region: oregon
 
-  # Web Service para o Backend Node.js
+  # Backend Node.js
   - type: web
     name: gestaoong-backend
     env: docker
+    dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     plan: free
     region: oregon
@@ -18,26 +20,19 @@ services:
       - key: PORT
         value: 3000
       - key: DB_HOST
-        fromDatabase:
-          name: gestaoong-db
-          property: host
+        value: gestaoong-db
       - key: DB_USER
-        fromDatabase:
-          name: gestaoong-db
-          property: user
+        value: root
       - key: DB_PASSWORD
-        fromDatabase:
-          name: gestaoong-db
-          property: password
+        value: rootpassword
       - key: DB_NAME
-        fromDatabase:
-          name: gestaoong-db
-          property: database
+        value: gestaoong
 
-# Banco de Dados MySQL/PostgreSQL gerenciado pelo Render
-databases:
-  - name: gestaoong-db
-    databaseName: gestaoong
-    user: onguser
+  # Banco de Dados MySQL
+  - type: web
+    name: gestaoong-db
+    env: docker
+    dockerContext: .
+    dockerfilePath: ./Dockerfile.mysql
     plan: free
     region: oregon
