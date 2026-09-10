@@ -28,7 +28,7 @@ services:
       - key: DB_NAME
         value: gestaoong
 
-  # Banco de Dados MySQL
+  # Banco de Dados MySQL com Volume Persistente
   - type: web
     name: gestaoong-db
     env: docker
@@ -36,3 +36,7 @@ services:
     dockerfilePath: ./Dockerfile.mysql
     plan: free
     region: oregon
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 1

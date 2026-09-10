@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const mysql = require('mysql2');
 
 const app = express();
 
@@ -45,3 +46,32 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
+// Outra coisa
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'gestaoong-db',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || 'rootpassword',
+  database: process.env.DB_NAME || 'gestaoong',
+  port: 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// Tenta testar a conexão com retentativas automáticas
+const connectWithRetry = () => {
+  pool.getConnection((err, connection) => {
+    if (err) {
+      console.log('Aguardando banco de dados inicializar... Tentando novamente em 5s');
+      setTimeout(connectWithRetry, 5000);
+    } else {
+      console.log('Conectado ao MySQL com sucesso!');
+      connection.release();
+    }
+  });
+};
+
+connectWithRetry();
+
+module.exports = pool;
