@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_ong
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: gestaoong
+      MYSQL_USER: onguser
+      MYSQL_PASSWORD: ongpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build: ./backend
+    container_name: api_ong
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_USER: onguser
+      DB_PASSWORD: ongpassword
+      DB_NAME: gestaoong
+      PORT: 3000
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    container_name: web_ong
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

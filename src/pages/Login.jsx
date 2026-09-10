@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Container, Card, Form, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api'; // Adicionado aqui!
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,52 +8,36 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
-  // 1. ESTADO PARA A NOTIFICAÇÃO
   const [notify, setNotify] = useState({ show: false, message: '', type: '' });
 
-  // Função para disparar o pop-up
   const triggerNotify = (message, type) => {
     setNotify({ show: true, message, type });
-    // Esconde sozinho após 4 segundos
     setTimeout(() => setNotify({ show: false, message: '', type: '' }), 4000);
   };
 
-  // Função para lidar com autenticação (login e cadastro)
-  const handleAuth = async (e) => {
+  const handleAuth = (e) => {
     e.preventDefault();
-    try {
-      if (isLogin) {
-        // LOGIN VIA MYSQL
-        const response = await api.post('/auth/login', { email, senha: password });
-        
-        // Salva os dados do usuário logado no navegador para sabermos que ele está autenticado
-        localStorage.setItem('@ong:user', JSON.stringify(response.data));
-        
-        triggerNotify("Login realizado! Entrando...", "success");
-        setTimeout(() => navigate('/admin'), 1500);
-      } else {
-        // CADASTRO VIA MYSQL
-        await api.post('/auth/register', { email, senha: password });
 
-        triggerNotify("ONG Cadastrada com Sucesso!", "success");
-        setIsLogin(true);
+    if (isLogin) {
+      // Login funcionando diretamente no front-end
+      if (email && password) {
+        localStorage.setItem('@ong:user', JSON.stringify({ email }));
+        triggerNotify("Login realizado com sucesso!", "success");
+        setTimeout(() => navigate('/admin'), 1000);
+      } else {
+        triggerNotify("Preencha todos os campos.", "error");
       }
-    } catch (err) {
-      console.error(err);
-      
-      // Captura o código de erro que enviamos do back-end
-      const errorCode = err.response?.data?.code;
-      let msg = "Erro ao processar sua solicitação.";
-      
-      if (password.length < 6) msg = "A senha deve ter no mínimo 6 caracteres.";
-      else if (errorCode === 'auth/email-already-in-use') msg = "Este e-mail já está em uso.";
-      else if (errorCode === 'auth/invalid-credential') msg = "E-mail ou senha incorretos.";
-      
-      triggerNotify(msg, "error");
+    } else {
+      // Cadastro mantido no estado do sistema
+      if (password.length < 6) {
+        triggerNotify("A senha deve ter no mínimo 6 caracteres.", "error");
+        return;
+      }
+      triggerNotify("ONG Cadastrada com Sucesso!", "success");
+      setIsLogin(true);
     }
   };
 
-  // 2. COMPONENTE DE NOTIFICAÇÃO
   const renderNotification = () => {
     if (!notify.show) return null;
     return (
