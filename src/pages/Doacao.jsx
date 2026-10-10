@@ -11,6 +11,10 @@ import {
 import { useNavigate } from "react-router-dom";
 import api from "../services/api"; // Deixe apenas a API!
 
+const api = axios.create({
+  baseURL: 'https://projetoa4.ifhost.gru.br/'
+});
+
 const Doacao = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -173,11 +177,12 @@ const Doacao = () => {
                   <Form.Label>Método de Pagamento</Form.Label>
                   <Form.Select
                     value={formData.metodo}
-                    onChange={(e) => setFormData({ ...formData, metodo: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, metodo: e.target.value })
+                    }
                     style={inputStyle}
                   >
-                    <option value="Pix">Pix (Chave Instantânea)</option>
-                    <option value="Dinheiro">Dinheiro Físico (Presencial)</option>
+                    <option value="Pix">Pix</option>
                     <option value="Cartão">Cartão de Crédito</option>
                     <option value="Boleto">Boleto Bancário</option>
                   </Form.Select>
@@ -371,21 +376,6 @@ const Doacao = () => {
                 processada no cartão final {formData.cartaoNumero.slice(-4)}.
               </p>
               <p>Obrigado por ajudar!</p>
-            </div>
-          )}
-          {/* Conteúdo para Dinheiro Físico */}
-          {formData.metodo === "Dinheiro" && (
-            <div className="py-3 text-center">
-              <h4 style={{ color: "#38bdf8", fontWeight: "bold" }}>Doação Agendada com Sucesso!</h4>
-              <p className="mt-3">
-                Obrigado! Sua intenção de doação no valor de <strong>R$ {formData.valor}</strong> foi gravada no nosso sistema.
-              </p>
-              <div style={{ background: "rgba(56, 189, 248, 0.1)", border: "1px dashed #38bdf8", padding: "15px", borderRadius: "12px" }} className="mt-3">
-                <p style={{ fontSize: "0.9rem", margin: 0, color: "#cbd5e1" }}>
-                  📍 <strong>Instruções de Entrega:</strong><br />
-                  Por favor, dirija-se à sede da ONG para realizar a entrega presencial do valor. O administrador confirmará o recebimento no sistema assim que for entregue.
-                </p>
-              </div>
             </div>
           )}
         </Modal.Body>
