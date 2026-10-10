@@ -1,33 +1,58 @@
-const express = require('express');
-const cors = require('cors');
-const mysql = require('mysql2');
+// ===================================================================
+// IMPORTAÇÃO DOS MÓDULOS ESSENCIAIS
+// ===================================================================
 
-const app = express();
+const express = require('express');   // Importa o framework Express para a criação do servidor HTTP e rotas
+const cors = require('cors');         // Importa o middleware CORS para gerenciar permissões de acesso entre domínios diferentes
+const mysql = require('mysql2');      // Importa o driver de conexão com o banco de dados MySQL
+const app = express();                // Inicializa a aplicação Express
+const PORT = process.env.PORT || 3001; // Define a porta em que o servidor Node.js irá rodar
 
-app.use(cors({ origin: '*' }));
+// ===================================================================
+// CONFIGURAÇÃO DOS MIDDLEWARES (CORS E PARSER JSON)
+// ===================================================================
+
+// Configuração do CORS:
+// O pacote 'cors' trata automaticamente todas as requisições de preflight (HTTP OPTIONS)
+// sem necessitar de rotas coringas manuais como app.options('*'), evitando erros com o path-to-regexp.
+app.use(cors({
+  origin: '*', // Permite requisições de qualquer origem (em produção, pode-se restringir à URL do front-end)
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos HTTP permitidos para integração com o React
+  allowedHeaders: ['Content-Type', 'Authorization'] // Cabeçalhos permitidos nas requisições do cliente
+}));
+
+// Middleware para interpretar requisições enviadas com o formato JSON no corpo (req.body)
 app.use(express.json());
 
-// Middleware que remove o prefixo do subdomínio injetado pelo cPanel
-app.use((req, res, next) => {
-  if (req.url.startsWith('/api.projetogestaoong.ifhost.gru.br')) {
-    req.url = req.url.replace('/api.projetogestaoong.ifhost.gru.br', '') || '/';
+// ===================================================================
+// CONEXÃO COM O BANCO DE DADOS (MYSQL)
+// ===================================================================
+
+const db = mysql.createConnection({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'gestaoong'
+});
+
+db.connect((err) => {
+  if (err) {
+    console.error('Erro ao conectar ao banco de dados MySQL:', err);
+    return;
   }
-  next();
+  console.log('Conexão com o banco de dados MySQL estabelecida com sucesso!');
 });
 
-const db = mysql.createPool({
-  host: 'localhost',
-  user: 'administrador_gestao_ong',
-  password: 'G07!brasil',
-  database: 'administrador_gestao_ong',
-  waitForConnections: true,
-  connectionLimit: 10
+// ===================================================================
+// ROTAS DA APLICAÇÃO (ENDPOINTS DA API)
+// ===================================================================
+
+// Rota de verificação do status da API (Health Check)
+app.get('/api/status', (req, res) => {
+  res.json({ status: 'API em execução', timestamp: new Date() });
 });
 
-app.get('/', (req, res) => {
-  res.send('API Node no cPanel funcionando!');
-});
-
+// Rota de Autenticação / Login
 app.post('/auth/login', (req, res) => {
   const { email, senha } = req.body;
   const sql = 'SELECT * FROM usuarios WHERE email = ? AND senha = ?';
@@ -38,6 +63,7 @@ app.post('/auth/login', (req, res) => {
   });
 });
 
+// Rotas para Famílias (Painel Admin)
 app.get('/admin/familias', (req, res) => {
   db.query('SELECT * FROM familias', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -70,6 +96,7 @@ app.delete('/admin/familias/:id', (req, res) => {
   });
 });
 
+// Rota para Doações
 app.get('/admin/doacoes', (req, res) => {
   db.query('SELECT * FROM doacoes', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -77,6 +104,7 @@ app.get('/admin/doacoes', (req, res) => {
   });
 });
 
+// Rotas para Solicitações
 app.get('/admin/solicitacoes', (req, res) => {
   db.query('SELECT * FROM solicitacoes', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -101,6 +129,7 @@ app.delete('/admin/solicitacoes/:id', (req, res) => {
   });
 });
 
+// Rotas para Ações
 app.get('/acoes', (req, res) => {
   db.query('SELECT * FROM acoes', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -116,5 +145,11 @@ app.post('/acoes', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));
+// ===================================================================
+// INICIALIZAÇÃO DO SERVIDOR
+// ===================================================================
+
+// Coloca o servidor para escutar na porta configurada
+app.listen(PORT, () => {
+  console.log(`Servidor rodando com sucesso na porta ${PORT}`);
+});
