@@ -3,6 +3,10 @@ import { Container, Card, Row, Col, Button, Form, Modal, Badge } from 'react-boo
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api'; // Adicionado o Axios
 
+const api = axios.create({
+  baseURL: 'https://projetoa4.ifhost.gru.br/'
+});
+
 const AreaBeneficiario = () => {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
