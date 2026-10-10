@@ -13,6 +13,11 @@ import api, {
 import { Container, Row, Col, Table, Button, Form, Modal, InputGroup, Card, Nav, Badge, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 
+
+const api = axios.create({
+  baseURL: 'https://projetoa4.ifhost.gru.br/'
+});
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('familias'); 
