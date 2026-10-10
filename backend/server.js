@@ -2,6 +2,10 @@
 // IMPORTAÇÃO DOS MÓDULOS ESSENCIAIS
 // ===================================================================
 
+
+
+
+
 const express = require('express');   // Importa o framework Express para a criação do servidor HTTP e rotas
 const cors = require('cors');         // Importa o middleware CORS para gerenciar permissões de acesso entre domínios diferentes
 const mysql = require('mysql2');      // Importa o driver de conexão com o banco de dados MySQL
@@ -20,6 +24,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos HTTP permitidos para integração com o React
   allowedHeaders: ['Content-Type', 'Authorization'] // Cabeçalhos permitidos nas requisições do cliente
 }));
+
+const api = axios.create( { baseURL: 'https://projetoa4.ifhost.gru.br/'} );
 
 // Middleware para interpretar requisições enviadas com o formato JSON no corpo (req.body)
 app.use(express.json());
